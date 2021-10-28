@@ -37,6 +37,13 @@ ivlal selects one group on every Ile, Val, Leu, Ala
 'sigma': Time constant for post-processing (averaging of frame direction with Gaussian)
 'n_bonds': Number of bonds away from methyl C–C group to define frame
 """
+
+"Frames without post-process smoothing"
+frames.append({'Type':'methylCC','Nuc':'ivlal','sigma':0})
+frames.append({'Type':'side_chain_chi','Nuc':'ivlal','n_bonds':1,'sigma':0})
+frames.append({'Type':'side_chain_chi','Nuc':'ivlal','n_bonds':2,'sigma':0})
+
+"Frames with post-process smoothing"
 frames.append({'Type':'hops_3site','Nuc':'ivlal','sigma':5})
 frames.append({'Type':'methylCC','Nuc':'ivlal','sigma':5})
 frames.append({'Type':'chi_hop','Nuc':'ivlal','n_bonds':1,'sigma':50})
@@ -71,15 +78,16 @@ fr_obj=DR.frames.FrameObj(mol)
 fr_obj.tensor_frame(sel1=1,sel2=2)
 for f in frames:fr_obj.new_frame(**f)
 fr_obj.load_frames(tf=tf,n=-1)
+fr_obj.post_process()
 
+include=np.zeros([3,9],dtype=bool)
+include[0][:3]=True    #Only methylCC,side_chain_chi frames without post processing
+include[1][[4,6,8]]=True  #Only methylCC,side_chain_chi frames with post processing
+include[2][3:]=True #All frames with post processing
 
-include=[[False,True,False,True,False,True],[False,True,False,True,False,True],[True,True,True,True,True,True]]
-t=np.arange(int(tf/2))*.005
+t=np.arange(int(tf/2))*.005     #Only plot the first half of the correlation function, where noise is lower
 
 for inc,ax0 in zip(include,ax):
-    fr_obj.remove_post_process()
-    if inc is not include[0]:
-        fr_obj.post_process()
     out=fr_obj.frames2ct(include=inc,mode='full')
     
     for ct,a in zip(out['ct_finF'],ax0):
