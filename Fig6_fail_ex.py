@@ -1,6 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Copyright 2021 Albert Smith-Penzel
+
+This file is part of Frames Theory Archive (FTA).
+
+FTA is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+FTA is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with FTA.  If not, see <https://www.gnu.org/licenses/>.
+
+
+Questions, contact me at:
+albert.smith-penzel@medizin.uni-leipzig.de
+
 Created on Thu Sep 24 14:52:56 2020
 
 @author: albertsmith
@@ -21,11 +42,14 @@ vft=ef.vft
 2) With and without timescale separation
 3) Uncorrelated and correlated
 4) Correlation due to geometry
-5) No correlation with adiabaticity
 """ 
 
 #%% Some useful functions
 
+"""
+calc_ct calculates the directly calculated correlation function and the product
+of correlation functions
+"""
 def calc_ct(v,vXZ,vF,vFXZ=None):
     Ct=ef.Ct_D2inf(v,cmpt='00',mode='ct')
     
@@ -38,10 +62,17 @@ def calc_ct(v,vXZ,vF,vFXZ=None):
     Ctp=Ctf*CtF
     return Ct,Ctp
 
+#xl is sort of like a formatting string, inserting prefixes and units
 xl=DR.tools.nice_str('{:q1}')
 xl.unit='s'
+
+#Set the default font size in matplotlib
 matplotlib.rcParams['font.size']=8
 
+"""
+plot_ct plots the directly calculated correlation function and the product of
+two correlation functions separated by a frame into a given axis
+"""
 def plot_ct(ax,v,vXZ,vF,vFXZ=None,dt=.005):
     t=np.arange(v.shape[1])*dt
     Ct,Ctp=calc_ct(v,vXZ,vF,vFXZ)
@@ -66,7 +97,10 @@ def plot_ct(ax,v,vXZ,vF,vFXZ=None,dt=.005):
         ax.legend(['direct','product'],loc='upper right')
     
 
-
+"""
+sym_hop generates a trajectory with hopping between nsites (default 3), where
+all sites are populated equally
+"""
 def sym_hop(tau,theta=np.pi/6,n=1e5,dt=.005,nsites=3):
     n=int(n)
     p=dt/tau
@@ -77,16 +111,9 @@ def sym_hop(tau,theta=np.pi/6,n=1e5,dt=.005,nsites=3):
     vXZ=v0.T[:,state]
     return v,vXZ
 
-def three_site_asym(tau,theta=np.pi/6,n=1e5,dt=.005):
-    n=int(n)
-    p=dt/tau
-    state=np.mod((binomial(1,p,n)*(1-2*binomial(1,.5,n))).cumsum(),3).astype(int)
-    v0=np.array([[np.sin(theta)*np.cos(phi),np.sin(theta)*np.sin(phi),np.cos(theta)] \
-         for phi in [-np.pi/2,0,np.pi/2]])
-    v=v0.T[:,state]
-    vXZ=v0.T[:,state]
-    return v,vXZ
-
+"""
+two_site_hop generates a trajectory with hops  between two sites
+"""
 def two_site_hop(tau,theta=np.pi/4,phi=0,n=1e5,dt=.005):
     n=int(n)
     p=dt/tau
@@ -95,6 +122,12 @@ def two_site_hop(tau,theta=np.pi/4,phi=0,n=1e5,dt=.005):
     v=v0.T[:,state]
     return v,np.repeat(np.atleast_2d([np.cos(phi),np.sin(phi),0]).T,n,axis=1)
 
+
+"""
+corr_met_2site generates two trajectories resulting from both a three-site hopping
+and a two-site hopping, where the two-site hop only occurs for a particular
+orientaion of the three site hoping (correlated motion)
+"""
 def corr_met_2site(tau_m,tau_h,theta_m=np.pi/6,theta_h=np.pi/4,n=1e5,dt=.005):
     n=int(n)
     p=dt/tau_m
@@ -114,23 +147,10 @@ def corr_met_2site(tau_m,tau_h,theta_m=np.pi/6,theta_h=np.pi/4,n=1e5,dt=.005):
 
     return vm,vXZm,vh,np.repeat(np.atleast_2d([np.cos(phi),np.sin(phi),0]).T,n,axis=1)
 
-def restrict_diff(step=1*np.pi/180,theta=np.pi/4,n=1e5,dt=.005,phi=0):
-    n=int(n)
-    rb=(1-2*binomial(1,.5,n)).cumsum()*step+theta/2
-    i=np.logical_or(rb<0,rb>theta)
-    counter=0
-    while np.any(i) and counter<n:
-        counter+=1
-        i0=np.argwhere(i)[0,0]
-        if rb[i0]<0:
-            rb[i0:]*=-1
-        else:
-            rb[i0:]*=-1
-            rb[i0:]+=2*theta
-        i=np.logical_or(rb<0,rb>theta)
-    return np.array([np.sin(rb)*np.cos(phi),np.sin(rb)*np.sin(phi),np.cos(rb)]),\
-        np.repeat(np.atleast_2d([np.cos(phi),np.sin(phi),0]).T,n,axis=1)
-
+"""
+Takes two trajectories resulting from individual motions and generates the motion
+resulting from both motions acting together on an NMR interaction
+"""
 def v_overall(v1,vXZ1,v2,v2XZ=None):
     sc2=vft.getFrame(v2,v2XZ)
     return vft.R(v1,*sc2),vft.R(vXZ1,*sc2)
@@ -197,15 +217,6 @@ v2,v2XZ=two_site_hop(tau=tau_h,n=n)
 v,vXZ=v_overall(v1,v1XZ,v2,v2XZ)
 plot_ct(ax[7],v,vXZ,v2,v2XZ)
 
-"Example 5: No correlation due to adiabaticity"
-#v1,v1XZ=two_site_hop(tau=tau_m)
-#v2,v2XZ=restrict_diff(theta=np.pi/2)
-#v,vXZ=v_overall(v1,v1XZ,v2,v2XZ)
-#plot_ct(ax[8],v,vXZ,v2,v2XZ)
-#
-#v1,v1XZ=two_site_hop(tau=tau_m,theta=np.pi/4,phi=np.pi/2)
-#v2,v2XZ=restrict_diff(phi=np.pi/2,theta=np.pi/2)
-#v,vXZ=v_overall(v1,v1XZ,v2,v2XZ)
-#plot_ct(ax[9],v,vXZ,v2,v2XZ)
-
 fig.tight_layout()
+
+plt.show()

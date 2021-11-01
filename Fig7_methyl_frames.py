@@ -1,6 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+Copyright 2021 Albert Smith-Penzel
+
+This file is part of Frames Theory Archive (FTA).
+
+FTA is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+FTA is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with FTA.  If not, see <https://www.gnu.org/licenses/>.
+
+
+Questions, contact me at:
+albert.smith-penzel@medizin.uni-leipzig.de
+
 Created on Tue Jul 13 13:42:37 2021
 
 @author: albertsmith
@@ -72,14 +93,28 @@ for a0,t0 in zip(ax,titles):
         
 
 #%% Analyze with just one frame
-tf=20000
-mol.select_atoms(Nuc='ivlal')
-fr_obj=DR.frames.FrameObj(mol)
-fr_obj.tensor_frame(sel1=1,sel2=2)
-for f in frames:fr_obj.new_frame(**f)
-fr_obj.load_frames(tf=tf,n=-1)
-fr_obj.post_process()
+tf=200000
+mol.select_atoms(Nuc='ivlal')   #Select 1 methyl group from all isoleucine, valine, leucine, and alanine residues
+"""We could also specify the residue, but the provided trajectory just has one residue
+A selection command populates mol.sel1 and mol.sel2 with atom groups, where sel1 and sel2 
+then define a list of bonds
+"""
+fr_obj=DR.frames.FrameObj(mol)  #This creates a frame object based on the above molecule object
+fr_obj.tensor_frame(sel1=1,sel2=2) #Here we specify to use the same bonds that were selected above in mol.select_atoms
+#1,2 means we use for the first atom selection 1 in mol and for the second atom the second selection in mol
 
+for f in frames:fr_obj.new_frame(**f) #This defines all frames in the frame object 
+#(arguments were previously stored in the frames list)
+fr_obj.load_frames(tf=tf,n=-1)  #This sweeps through the trajectory and collects the directions of all frames at each time point
+fr_obj.post_process()   #This applies post processing to the frames where it is defined (i.e. sigma!=0)
+
+"""
+For each calculation, we only include some of the 9 frames that were defined above.
+
+1) 3 rotational frames without post procesing (frames 0-2)
+2) 3 rotational frames with averaging (frames 4,6,8)
+3) 6 frames (rotational+hopping frames, frames 3-8)
+"""
 include=np.zeros([3,9],dtype=bool)
 include[0][:3]=True    #Only methylCC,side_chain_chi frames without post processing
 include[1][[4,6,8]]=True  #Only methylCC,side_chain_chi frames with post processing
@@ -108,29 +143,5 @@ for inc,ax0 in zip(include,ax):
     
 fig.set_size_inches([180/25.4,220/25.4])
 
-#"Some plotting of the correlation functions"
-#fig=plt.figure('Correlation functions')
-#fig.clear()
-#n=(fr_obj.Ct['ct_finF'].shape[0]+1)
-#ax=[fig.add_subplot(int(n/2),2,k+1) for k in range(n)]
-#xl=[2,100,100,500,500]
-#xl=[.1,.5,5,100,5,100,500]
-##xl=[2]
-#t=fr_obj.t[:int(tf/2)]
-#for ct,a in zip(out['ct_finF'],ax):
-#    a.cla()
-#    a.plot(t,ct.mean(0)[:int(tf/2)])
-#    a.set_ylim([0,1.05])
-#    S2=ct.mean(0)[int(tf/4):int(tf/2)].mean()
-##    tc0=t[np.argmin(np.abs((ct.mean(0)[:int(tf/2)]-S2)/(1-S2)-np.exp(-1)))]
-#    b=np.argwhere(ct.mean(0)-S2<0)[0,0]
-#    tc0=np.max([.001,((ct.mean(0)[:b]-S2)/(1-S2)).sum()*.005])
-#    fun=lambda x:(((x[0]+(1-x[0])*np.exp(-t[:b]/x[1]))-ct.mean(0)[:b])**2).sum()
-#    S2,tc=least_squares(fun,[S2,tc0]).x
-#    a.plot(t,S2+(1-S2)*np.exp(-t/tc),color='grey',linestyle=':')
-#    a.set_xlim([0,np.min([10*tc,fr_obj.t[int(tf/2)]])])
-#ax[-1].semilogx(out['t'][:int(tf/2)],out['ct'].mean(0)[:int(tf/2)])
-#ax[-1].semilogx(out['t'][:int(tf/2)],out['ct_prod'].mean(0)[:int(tf/2)])
-##fig.tight_layout()
-
+plt.show()
 
