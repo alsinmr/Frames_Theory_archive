@@ -217,7 +217,7 @@ class FrameObj():
             fun,fi,info=new_fun(Type,mol,**kwargs)
             if frame_index is None:frame_index=fi #Assign fi to frame_index if frame_index not provided
             f=fun()    #Output of the vector function (test its behavior)
-            nf=f[0].shape[1] if len(f)>1 else f.shape[1]
+            nf=f[0].shape[1] if isinstance(f,tuple) or isinstance(f,list) else f.shape[1]
             if fun is not None:
                 "Run some checks on the validity of the frame before storing it"
                 if frame_index is not None:
@@ -691,7 +691,8 @@ def frames2ct(mol=None,v=None,return_index=None,mode='full',n=100,nr=10,t0=0,tf=
             ct_m0_finF.append(a)
             A_m0_finF.append(b)
         ct_m0_finF=np.array(ct_m0_finF)
-        A_m0_finF=np.array(A_m0_finF)
+        if ri.calc_A_m0_finF:
+            A_m0_finF=np.array(A_m0_finF)
 #    elif ri[4] or ri[5]:
     elif ri.calc_A_m0_finF:
         "Calculate A_m0_finF if requested, or A_0m_finF requested"
@@ -908,20 +909,7 @@ def Ct_D2inf(vZ,vXZ=None,nuZ_F=None,nuXZ_F=None,nuZ_f=None,nuXZ_f=None,cmpt='0p'
         
         "Get the FT of zzp if required"
         if ctFT:ftzz=FT(zzp,index)
-        """
-        AN IMPORTANT NOTE HERE:
-        For awhile, I have had taken the complex conjugate of ftzz and not of
-        the other terms. In principle, should be a teeny bit faster that way.
-        However, it returns, apparently, the complex conjugate of the correct
-        correlation. One solution was to simply take the complex conjugate
-        of the result (previously after taking the inverse transform about 40
-        lines below here). However, I think this only works because the correlation
-        functions are approximately symmetric about 0. Therefore, now I instead
-        take the complex conjugate of the other term (about 15 lines below), 
-        and remove the conjugate here and on the final correlatin functions.
         
-        Let's assume this works, but watch out for new errors!
-        """
         "These are additional terms required for C_pp"
         if np.any(calc[5:]):
             z=l0['eag']

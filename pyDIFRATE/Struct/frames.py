@@ -386,7 +386,7 @@ def side_chain_chi(molecule,n_bonds=1,Nuc=None,resids=None,segids=None,filter_st
     
     return sub,frame_index,{'PPfun':'AvgGauss','sigma':sigma}
 
-def librations(molecule,sel1=None,sel2=None,Nuc=None,resids=None,segids=None,filter_str=None,full=True):
+def librations(molecule,sel1=None,sel2=None,Nuc=None,resids=None,segids=None,filter_str=None,full=True,sigma=0):
     """
     Defines a frame for which librations are visible. That is, for a given bond,
     defined by sel1 and sel2, we search for other atoms bound to the 
@@ -452,7 +452,7 @@ def librations(molecule,sel1=None,sel2=None,Nuc=None,resids=None,segids=None,fil
             v1=vft.pbc_corr(v1.T,box)
             v2=vft.pbc_corr(v2.T,box)
             return v1,v2
-    return sub
+    return sub,None,{'PPfun':'AvgGauss','sigma':sigma}
     
 def librations0(molecule,sel1=None,sel2=None,Nuc=None,resids=None,segids=None,filter_str=None):
     """

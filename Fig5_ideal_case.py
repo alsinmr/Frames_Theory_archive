@@ -304,7 +304,7 @@ Ct0p=[Ct0pf,Ct0pm,Ct0ph,Ct0pr]      #Correlation functions for the equilibration
 Ctp0=[Ctp0f,Ctp0m,Ctp0h,Ctp0r]      #Correlation functions to construct total correlation function of given motion
 
 for k,(ctx,ct0p,ctp0) in enumerate(zip(Ct_x,Ct0p,Ctp0)):
-    "Ctp0 and the scaled Ctp0"
+    "Ctp0"
     for m,ct in enumerate(ctp0[2:]):
         ax[2*k+2].semilogx(t[:n2],ct[:n2].real)
         if m!=0:
@@ -339,3 +339,27 @@ for a,ttl,l,txt in zip(ax,titles,legends,text):
         a.set_xticklabels([])
 
 plt.show()
+
+
+#%% Plotting the residual tensors in chimeraX for comparison
+from pyDIFRATE.chimera.chimeraX_funs import draw_tensors,get_path,set_chimera_path,chimera_path
+import os
+#set_chimera_path('your path to chimeraX executable here')  #uncomment and fill in path
+if os.path.exists(os.path.join(get_path(),'ChimeraX_program_path.txt')) and os.path.exists(chimera_path()):
+    text0='Residual tensor for {} motion at {0} ps'
+    t0=[50,200,100000]  #Times in ps to show the tensor (we'll show t=0 simultaneously for comparison)
+    titles=['Fast wobbling','Three-site hopping','Two-site hopping','Tumbling']
+    for ct0p,title in zip(Ct0p,titles):
+#        DR.chimeraX
+        for t1 in t0:
+            b=np.argmin(np.abs(t1-t*1000))
+#            draw_tensors(np.concatenate(([[0,0,1,0,0]],[ct0p[:,b]])),chimera_cmds=\
+#                ["2dlabel text '{0} at 0 and {1} ps' size 26 x .03 y .92".format(title,t1),'turn x 90'],
+#                save_opts='transparentBackground True',
+#                fileout='{0}_{1}ps.png'.format(title.replace(' ','_').replace('-','_'),t1))  #Uncomment to save result to file
+            draw_tensors(np.concatenate(([[0,0,1,0,0]],[ct0p[:,b]])),chimera_cmds=\
+                ["2dlabel text '{0} at 0 and {1} ps' size 26 x .03 y .92".format(title,t1),'turn x 90'])
+else:
+    print('To visualize residual tensors, install chimeraX and provide the path with DR.chimeraX.set_chimera_path()')
+    print('https://www.cgl.ucsf.edu/chimerax/download.html')
+

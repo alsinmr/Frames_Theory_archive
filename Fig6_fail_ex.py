@@ -60,7 +60,7 @@ def calc_ct(v,vXZ,vF,vFXZ=None):
     CtF=np.sum(Af*Ctp0F.T,1).T.real/Af[2].real
     
     Ctp=Ctf*CtF
-    return Ct,Ctp
+    return Ct.real,Ctp
 
 #xl is sort of like a formatting string, inserting prefixes and units
 xl=DR.tools.nice_str('{:q1}')
@@ -148,6 +148,32 @@ def corr_met_2site(tau_m,tau_h,theta_m=np.pi/6,theta_h=np.pi/4,n=1e5,dt=.005):
     return vm,vXZm,vh,np.repeat(np.atleast_2d([np.cos(phi),np.sin(phi),0]).T,n,axis=1)
 
 """
+corr_met_2site2 generates two trajectories resulting from both a three-site hopping
+and a two-site hopping, where the three-site hopping only occurs for one of the
+two two-site hops
+"""
+def corr_met_2site2(tau_m,tau_h,theta_m=np.pi/6,theta_h=np.pi/4,n=1e5,dt=.005):
+    n=int(n)
+    
+    p=dt/tau_h
+    hop=binomial(1,p,n)
+    state=np.mod(hop.cumsum(),2).astype(int)
+    phi=0
+    v0=np.array([[0,0,1],[np.sin(theta_h)*np.cos(phi),np.sin(theta_h)*np.sin(phi),np.cos(theta_h)]])
+    vh=v0.T[:,state]
+    
+    p=2*dt/tau_m
+    hop=binomial(1,p,n)*(1-2*binomial(1,.5,n))
+    hop[state!=0]=0
+    state=np.mod(hop.cumsum(),3).astype(int)
+    v0=np.array([[np.sin(theta_m)*np.cos(phi),np.sin(theta_m)*np.sin(phi),np.cos(theta_m)] \
+         for phi in np.linspace(0,2*np.pi,3,endpoint=False)])
+    vm=v0.T[:,state]
+    vXZm=v0.T[:,state]
+
+    return vm,vXZm,vh,np.repeat(np.atleast_2d([np.cos(phi),np.sin(phi),0]).T,n,axis=1)
+
+"""
 Takes two trajectories resulting from individual motions and generates the motion
 resulting from both motions acting together on an NMR interaction
 """
@@ -160,7 +186,7 @@ def v_overall(v1,vXZ1,v2,v2XZ=None):
 #%% Set up plots
 fig=plt.figure('Correlation Functions')
 fig.clear()
-ax=[fig.add_subplot(2,4,k+1) for k in [0,4,1,5,2,6,3,7]]
+ax=[fig.add_subplot(2,5,k+1) for k in [0,5,1,6,2,7,3,8,4,9]]
 fig.set_size_inches([180/25.4,100/25.4])
 
 
@@ -206,16 +232,28 @@ vm,vmXZ,vh,vhXZ=corr_met_2site(tau_m=tau_m,tau_h=tau_h,n=n)
 v,vXZ=v_overall(vm,vmXZ,vh,vhXZ)
 plot_ct(ax[5],v,vXZ,vh,vhXZ)
 
-"Example 4: Correlation due to geometry"
+"Example 4: Uncorrelated vs. correlated (version 2)"
+vm,vmXZ=sym_hop(tau=tau_m,n=n)
+vh,vhXZ=two_site_hop(tau=tau_h,n=n)
+
+v,vXZ=v_overall(vm,vmXZ,vh,vhXZ)
+plot_ct(ax[6],v,vXZ,vh,vhXZ)
+
+vm,vmXZ,vh,vhXZ=corr_met_2site2(tau_m=tau_m,tau_h=tau_h,n=n)
+
+v,vXZ=v_overall(vm,vmXZ,vh,vhXZ)
+plot_ct(ax[7],v,vXZ,vh,vhXZ)
+
+"Example 5: Correlation due to geometry"
 v1,v1XZ=two_site_hop(tau=tau_m,n=n)
 v2,v2XZ=two_site_hop(tau=tau_h,n=n)
 v,vXZ=v_overall(v1,v1XZ,v2,v2XZ)
-plot_ct(ax[6],v,vXZ,v2,v2XZ)
+plot_ct(ax[8],v,vXZ,v2,v2XZ)
 
 v1,v1XZ=two_site_hop(tau=tau_m,phi=np.pi/2,n=n)
 v2,v2XZ=two_site_hop(tau=tau_h,n=n)
 v,vXZ=v_overall(v1,v1XZ,v2,v2XZ)
-plot_ct(ax[7],v,vXZ,v2,v2XZ)
+plot_ct(ax[9],v,vXZ,v2,v2XZ)
 
 fig.tight_layout()
 

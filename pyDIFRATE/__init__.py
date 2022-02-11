@@ -1,6 +1,8 @@
 # __init__.py
 
 
+import pyDIFRATE.r_class as sens
+
 from .Struct.structure import molecule
 from .data.data_class import data
 from .data import fitting
