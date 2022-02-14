@@ -68,7 +68,8 @@ frames.append({'Type':'chi_hop','Nuc':'ivlal','n_bonds':2,'sigma':50})
 frames.append({'Type':'side_chain_chi','Nuc':'ivlal','n_bonds':2,'sigma':50})
         
 #%% Analyze with just one frame
-tf=200000
+tf=200000     #How many time points of the trajectory to include (smaller number is faster, but less accurate)
+#Making tf too small can cause failure of the SVD later on (line 123)
 mol.select_atoms(Nuc='ivlal')   #Select 1 methyl group from all isoleucine, valine, leucine, and alanine residues
 """We could also specify the residue, but the provided trajectory just has one residue
 A selection command populates mol.sel1 and mol.sel2 with atom groups, where sel1 and sel2 
@@ -119,7 +120,7 @@ frames[0].R_std[:,0]=1e-6
 frames[0].sens.info.loc['stdev']=frames[0].R_std[0] 
 frames[0].new_detect()
 r0=frames[0].detect
-r0.r_no_opt(20)     #This sets the detector sensitivities (this setting is a temporary processing)
+r0.r_no_opt(18)     #This sets the detector sensitivities (this setting is a temporary processing)
 for i in index:     #Loop over all combinations of frames (listed above in the comments)
     data=frames[0].copy()
     data.R_std[:]=np.sqrt(data.sens.info.loc['t'].to_numpy()/data.sens.info[tf-1]['t'])
@@ -161,7 +162,22 @@ rDET=fit0[0].detect.copy()          #Detector object for calculating detector re
 #rDET.r_auto(n=6,NegAllow=0)
 rDET.r_target(targetDET,n=18)
 
+#%% Process the data
+nmrp=list()     #NMR relaxation rates resulting from products of motions
+detp=list()     #Detector responses resulting from productions of motions
+det=list()      #Detector responses resulting from individual motions
+for k,(f,f1) in enumerate(zip(fit0,fit1)):  #Loop over all initial fits
+    f.detect=rNMR
+    nmrp.append(DR.fitting.opt2dist(f.fit()))   #process for NMR relaxation rates (product)
+    
+    f.detect=rDET
+    detp.append(DR.fitting.opt2dist(f.fit()))   #process for detectors (product)
+    
+    f1.detect=rDET                          
+    det.append(DR.fitting.opt2dist(f1.fit()))   #Process for detectors (individual motions)
+
 #%% Set up figures
+"Figure and axes"
 fig=plt.figure('Experiments and Detectors with Different motions')
 fig.clear()
 fig.set_size_inches([10.27,  8.03])
@@ -170,34 +186,14 @@ ax1=[fig.add_subplot(r.info.shape[1],3,k+1) for k in range(1,3*r.info.shape[1],3
 ax2=[fig.add_subplot(r.info.shape[1],3,k+1) for k in range(2,3*r.info.shape[1],3)]
 
 
-
+"x-label"
 label=['methyl libr.','methyl rot.\n(total)','methyl rot.+\n'+r'$\chi_2$ lib.',
        'methyl rot.+\n'+r'$\chi_2$ rot.',r'methyl+$\chi_2$ rot.+'+'\n'+r'$\chi_1$ rot.',
        'methyl+\n'+r'$\chi_1+\chi_2$ rot.','all motion']
 label1=['methyl libr.','methyl hop',r'$\chi_2$ libr.',r'$\chi_2$ hop',r'$\chi_1$ libr.',
        r'$\chi_1$ hop',r'C$\alpha$-C$\beta$ motion']
 
-nmrp=list()
-detp=list()
-det=list()
-for k,(f,f1) in enumerate(zip(fit0,fit1)):
-    f.detect=rNMR
-    nmrp.append(DR.fitting.opt2dist(f.fit()))
-
-    for m,a in enumerate(ax):a.bar(k,nmrp[-1].R[:,m].mean(0)/rNMR.rhoz()[m].max())
-    f.detect=rDET
-    detp.append(DR.fitting.opt2dist(f.fit()))
-
-    for m,a in enumerate(ax1):a.bar(k,detp[-1].R[:,m].mean(0))
-    
-    f1.detect=rDET
-    det.append(DR.fitting.opt2dist(f1.fit()))
-
-    for m,a in enumerate(ax2):a.bar(k,det[-1].R[:,m].mean(0))
-    
-
-
-string=DR.tools.nice_str(r'{0} at {1} MHz, $\tau_c\approx${2:q2},$\Delta z$={3:.1f}')
+string=DR.tools.nice_str(r'{0} at {1} MHz, $\tau_c\approx${2:q2},$\Delta z$={3:.1f}') #Format string for plot titles
 string.unit='s'
 pad=3
 dz=nmr.z()[1]-nmr.z()[0]
@@ -209,7 +205,7 @@ for info,a,z0,Dz in zip(nmr.info.items(),ax[1:],z,Delz):
     a.set_title(string.format(info[1]['Type'],info[1]['v0'],10**z0,Dz),y=1,pad=pad)
 ax[0].set_title(r'$1-S^2,\tau_c<500$ ns',y=1,pad=pad)
 
-string=DR.tools.nice_str(r'$\rho_{0}, \tau_c\approx${1:q2},$\Delta z$={2:.1f}')
+string=DR.tools.nice_str(r'$\rho_{0}, \tau_c\approx${1:q2},$\Delta z$={2:.1f}') #Format string for plot titles
 string.unit='s'
 for k,(a,z0,Dz) in enumerate(zip(ax1,rDET.info.loc['z0'],rDET.info.loc['Del_z'])):
     a.set_title(string.format(k,10**z0,Dz),y=1,pad=pad)
@@ -239,8 +235,13 @@ for a in ax2:
         a.set_xticks(range(7))
         a.set_xticklabels([])
 
-for a in [*ax,*ax1,*ax2]:
-    yl=a.get_ylim()
-    a.set_ylim([0,yl[1]])
+
+#%% Plot the results
+for k,(nmrp0,detp0,det0) in enumerate(zip(nmrp,detp,det)):
+    for m,a in enumerate(ax):a.bar(k,nmrp0.R[:,m].mean(0)/rNMR.rhoz()[m].max())  #Plot the NMR results
+    for m,a in enumerate(ax1):a.bar(k,detp0.R[:,m].mean(0)) #Plot the detector results (product)
+    for m,a in enumerate(ax2):a.bar(k,det0.R[:,m].mean(0)) #Plot the detector results (individual)
+    
+for a in [*ax,*ax1,*ax2]:a.set_ylim([0,a.get_ylim()[1]])  #Adjust the y-axis
 
 plt.show()
