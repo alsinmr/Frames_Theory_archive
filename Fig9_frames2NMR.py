@@ -22,7 +22,7 @@ along with FTA.  If not, see <https://www.gnu.org/licenses/>.
 Questions, contact me at:
 albert.smith-penzel@medizin.uni-leipzig.de
 
-Created on Tue Jul 13 13:42:37 2021
+Created on Tue Jan 1 13:42:37 2022
 
 @author: albertsmith
 """
@@ -31,7 +31,6 @@ import numpy as np
 import pyDIFRATE as DR
 import matplotlib.pyplot as plt
 import matplotlib
-from scipy.optimize import least_squares
 
 font = {'family' : 'normal',
         'weight' : 'normal',
@@ -101,70 +100,64 @@ direct,prod,*frames=fr_obj.frames2data(mode='full')
 #%% Sweep over various combinations of motions to determine the relaxation and detector behavior
 """
 1) Methyl librations only
-2) All librations (methyl, chi1, chi2)
-3) Librations+methyl hops
-4) Librations+methyl hops+chi2 rotation
-5) Librations+methyl hops+chi2 hops+chi1 hops
-6) All motions
+2) Methyl librations+methyl hopping
+3) Methyl libration+methyl hopping+chi2 libration
+4) Methyl librations+methyl hopping+chi2 libration+chi2 hopping
+5) Methyl librations+methyl hopping+chi2 libration+chi2 hopping+chi1 libration
+6) Methyl librations+methyl hopping+chi2 libration+chi2 hopping+chi1 libration+chi1 hopping
+7) All motion
 """
     
-index=[[0],[0,1],[0,1,2],[0,1,2,3],[0,1,2,3,4],[0,1,2,3,4,5],[0,1,2,3,4,5,6]]
-
-index=[np.arange(k) for k in range(1,8)]
-
+index=[np.arange(k) for k in range(1,8)] #Index to determine which frames to include
 
 fit0=list()
-ct=list()
-
+  
+#We edit the standard deviation that is automatically inserted for correlation functions
+#This definition assumes the dominant source of error is undersampling of frequent events
 frames[0].R_std[:]=np.sqrt(frames[0].sens.info.loc['t'].to_numpy()/frames[0].sens.info[tf-1]['t'])
 frames[0].R_std[:,0]=1e-6
-frames[0].sens.info.loc['stdev']=frames[0].R_std[0]
+frames[0].sens.info.loc['stdev']=frames[0].R_std[0] 
 frames[0].new_detect()
 r0=frames[0].detect
-r0.r_no_opt(20)
-for i in index:
+r0.r_no_opt(20)     #This sets the detector sensitivities (this setting is a temporary processing)
+for i in index:     #Loop over all combinations of frames (listed above in the comments)
     data=frames[0].copy()
     data.R_std[:]=np.sqrt(data.sens.info.loc['t'].to_numpy()/data.sens.info[tf-1]['t'])
     data.R_std[:,0]=1e-6
-    data.R=np.prod([frames[i0].R for i0 in i],axis=0) if i is not None else direct.R
-    data.detect=r0
-    fit0.append(data.fit(bounds=False))
-    ct.append(data.R.mean(0))
+    data.R=np.prod([frames[i0].R for i0 in i],axis=0) #Take product of all frames in i
+    data.detect=r0  #This is the detector object, copied into the data object for processing
+    fit0.append(data.fit(bounds=False)) #Process the data and store as a fit
     
-    
+#%% Here we sweep over the motions individually (i.e. not a product)    
 fit1=list()
 for f in frames:
-    f.detect=r0
-    f.R_std=frames[0].R_std
-    fit1.append(f.fit(bounds=False))
-    
-ct=np.array(ct)
-t=data.sens.info.loc['t'].to_numpy()
-
+    f.detect=r0  #Copy detector object to individual frames
+    f.R_std=frames[0].R_std #Copy standard deviations
+    fit1.append(f.fit(bounds=False)) #Fit the results from the individual motion
 
 #%% Calculate relaxation rate constant sensitivities and detector sensitivities
-nmr=DR.sens.NMR(Type='NOE',Nuc='13CHD2',v0=[1000,700,400])
+"""Use nmr to calculate sensitivities of NMR and R1 experiments. First line
+adds NOE experiments, second line adds R1 experiments
+"""
+nmr=DR.sens.NMR(Type='NOE',Nuc='13CHD2',v0=[1000,700,400]) 
 nmr.new_exp(Type='R1',Nuc='13CHD2',v0=[1000,700,400])
 
-nNMR=nmr.R().shape[0]
-nD=4
+nNMR=nmr.R().shape[0]   #Number of NMR experiments
+nD=4 #Number of  detectors to analyze these experiments with
 
-r=DR.sens.detect(nmr)
-r.r_auto(nD-1,inclS2=True,Normalization='MP')
+r=DR.sens.detect(nmr)   #Calculate detectors from NMR expeirments
+r.r_auto(nD-1,inclS2=True,Normalization='MP') #Detector optimization with S2
 
-targetNMR=np.concatenate([[np.ones(200)],nmr.R()])
-targetNMR[0,140:]=0
-targetDET=r.rhoz()
-targetDET[0,75:]=0
-
-
-
+targetNMR=np.concatenate([[np.ones(200)],nmr.R()]) #Target for calculating NMR relaxation rates
+targetNMR[0,140:]=0     #This zeros out the S2 sensitivity for long correlation times 
+targetDET=r.rhoz()      #Target for calculating detector responses
+targetDET[0,75:]=0      #This zeros out the rho0 sensitivity for long correlation times
 
 
 #%% Calculate rate constants/detector responses and plot results
-rNMR=fit0[0].detect.copy()
+rNMR=fit0[0].detect.copy()          #Detector object for calculating NMR rate constants
 rNMR.r_target(targetNMR,n=15)
-rDET=fit0[0].detect.copy()
+rDET=fit0[0].detect.copy()          #Detector object for calculating detector responses
 #rDET.r_auto(n=6,NegAllow=0)
 rDET.r_target(targetDET,n=18)
 
@@ -208,12 +201,13 @@ string=DR.tools.nice_str(r'{0} at {1} MHz, $\tau_c\approx${2:q2},$\Delta z$={3:.
 string.unit='s'
 pad=3
 dz=nmr.z()[1]-nmr.z()[0]
-z=(nmr.z()*nmr.R()).sum(1)/nmr.R().sum(1)
-Delz=nmr.R().sum(1)*dz/nmr.R().max(axis=1)
+z=(nmr.z()*nmr.R()).sum(1)/nmr.R().sum(1)   #Calculates the center of each NMR sensitivity
+Delz=nmr.R().sum(1)*dz/nmr.R().max(axis=1)  #Calculates the width of each NMr sensitivity
 
+"Put the centers and widths into the title"
 for info,a,z0,Dz in zip(nmr.info.items(),ax[1:],z,Delz):
     a.set_title(string.format(info[1]['Type'],info[1]['v0'],10**z0,Dz),y=1,pad=pad)
-ax[0].set_title(r'$1-S^2,\tau_c<200$ ns',y=1,pad=pad)
+ax[0].set_title(r'$1-S^2,\tau_c<500$ ns',y=1,pad=pad)
 
 string=DR.tools.nice_str(r'$\rho_{0}, \tau_c\approx${1:q2},$\Delta z$={2:.1f}')
 string.unit='s'
