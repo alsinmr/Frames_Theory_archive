@@ -67,25 +67,7 @@ frames.append({'Type':'chi_hop','Nuc':'ivlal','n_bonds':1,'sigma':50})
 frames.append({'Type':'side_chain_chi','Nuc':'ivlal','n_bonds':1,'sigma':50})
 frames.append({'Type':'chi_hop','Nuc':'ivlal','n_bonds':2,'sigma':50})
 frames.append({'Type':'side_chain_chi','Nuc':'ivlal','n_bonds':2,'sigma':50})
-
-
-#%% Create a figure for plotting
-titles=['Methyl lib.','Methyl hop.',r'$\chi_2$ lib.',r'$\chi_2$ hop.',
-          r'$\chi_1$ lib.',r'$\chi_1$ hop.',r'C$\alpha$-C$\beta$ motion','Total']
-fig=plt.figure('Methyl Dynamics')
-fig.clear()
-fig.set_size_inches([10.27,  9.03])
-ax=[]
-ax.append([fig.add_subplot(5,3,k+1) for k in range(0,15,3)])
-ax.append([fig.add_subplot(5,3,k+1) for k in range(1,15,3)])
-ax.append([fig.add_subplot(5,6,k+1) for k in [4,5,10,11,16,17,22]])
-ax[-1].append(fig.add_subplot(5,3,15))
-
-for a0,t0 in zip(ax,titles):
-    for a,t in zip(a0,t0):
-        a.set_title(t)
         
-
 #%% Analyze with just one frame
 tf=200000
 mol.select_atoms(Nuc='ivlal')   #Select 1 methyl group from all isoleucine, valine, leucine, and alanine residues
@@ -158,9 +140,6 @@ for f in frames:
     
 ct=np.array(ct)
 t=data.sens.info.loc['t'].to_numpy()
-
-ax=plt.figure().add_subplot(111)
-for f in frames:ax.semilogx(t[1:],f.R.mean(0)[1:])
 
 
 #%% Calculate relaxation rate constant sensitivities and detector sensitivities
@@ -266,5 +245,8 @@ for a in ax2:
         a.set_xticks(range(7))
         a.set_xticklabels([])
 
+for a in [*ax,*ax1,*ax2]:
+    yl=a.get_ylim()
+    a.set_ylim([0,yl[1]])
 
 plt.show()
