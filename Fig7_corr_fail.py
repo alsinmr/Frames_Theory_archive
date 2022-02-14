@@ -182,7 +182,7 @@ fig.set_size_inches([180/25.4,80/25.4])
 #%% Sweep through three cases of correlated motion (parallel, inverse parallel, perpendicular)
 theta=np.pi/4
 
-"Example 6: Simultaneous motions (parallel)"
+"Example 1: Simultaneous motions (parallel)"
 v1,v1XZ,v2,v2XZ=full_corr(tau=.5,theta=theta,mode='para',corr=False)
 v,vXZ=v_overall(v1,v1XZ,v2,v2XZ)
 plot_ct(ax[0],v,vXZ,v2,v2XZ)
@@ -191,7 +191,7 @@ v1,v1XZ,v2,v2XZ=full_corr(tau=.5,theta=theta,mode='para',corr=True)
 v,vXZ=v_overall(v1,v1XZ,v2,v2XZ)
 plot_ct(ax[1],v,vXZ,v2,v2XZ)
 
-"Example 7: Simultaneous motions (inverse parallel)"
+"Example 2: Simultaneous motions (inverse parallel)"
 v1,v1XZ,v2,v2XZ=full_corr(tau=.5,theta=theta,mode='ipara',corr=False)
 v,vXZ=v_overall(v1,v1XZ,v2,v2XZ)
 plot_ct(ax[2],v,vXZ,v2,v2XZ)
@@ -200,7 +200,7 @@ v1,v1XZ,v2,v2XZ=full_corr(tau=.5,theta=theta,mode='ipara',corr=True)
 v,vXZ=v_overall(v1,v1XZ,v2,v2XZ)
 plot_ct(ax[3],v,vXZ,v2,v2XZ)
 
-"Example 7: Simultaneous motions (perpendicular)"
+"Example 3: Simultaneous motions (perpendicular)"
 v1,v1XZ,v2,v2XZ=full_corr(tau=.5,theta=theta,mode='perp',corr=False)
 v,vXZ=v_overall(v1,v1XZ,v2,v2XZ)
 plot_ct(ax[4],v,vXZ,v2,v2XZ)
